@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0F6E56">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Diag. Campo">
+<title>Diagnóstico de Campo — Valoriza Agro</title>
+<link rel="manifest" id="manifest-placeholder">
+<style>
+  :root {
+    --verde: #1D9E75;
+    --verde-dark: #0F6E56;
+    --verde-light: #EAF3DE;
+    --verde-mid: #97C459;
+    --amarelo: #EF9F27;
+    --amarelo-light: #FAEEDA;
+    --amarelo-dark: #854F0B;
+    --vermelho: #E24B4A;
+    --vermelho-light: #FCEBEB;
+    --vermelho-dark: #A32D2D;
+    --bg: #F7F8F5;
+    --surface: #FFFFFF;
+    --border: #E2E6DE;
+    --text: #1A2418;
+    --text-muted: #5C6B58;
+    --text-hint: #96A891;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); font-family: 'Georgia', serif; color: var(--text); }
+
+  /* TOP BAR */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--verde-dark);
+    padding: 0;
+    display: flex; flex-direction: column;
+  }
+  .topbar-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px 10px;
+  }
+  .topbar h1 { font-size: 17px; font-weight: 400; color: #fff; letter-spacing: 0.01em; font-family: 'Georgia', serif; }
+  .topbar h1 span { opacity: 0.7; font-size: 13px; display: block; font-family: -apple-system, sans-serif; letter-spacing: 0; font-weight: 400; margin-top: 1px; }
+  .topbar-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 13px; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-family: -apple-system, sans-serif; white-space: nowrap; }
+  .topbar-btn:active { background: rgba(255,255,255,0.25); }
+
+  /* TABS */
+  .tabs { display: flex; background: var(--verde-dark); padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .tab { flex: 1; text-align: center; padding: 10px 4px; font-size: 12px; color: rgba(255,255,255,0.6); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; font-family: -apple-system, sans-serif; }
+  .tab.active { color: #fff; border-bottom-color: #fff; }
+
+  /* SCREENS */
+  .screen { display: none; padding: 16px; padding-bottom: 32px; }
+  .screen.active { display: block; }
+
+  /* CARDS / SECTIONS */
+  .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 12px; overflow: hidden; }
+  .card-header { padding: 12px 14px 8px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); background: #FAFBF9; }
+  .card-header-icon { width: 28px; height: 28px; border-radius: 8px; background: var(--verde-light); display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .card-header-title { font-size: 13px; font-weight: 600; color: var(--verde-dark); font-family: -apple-system, sans-serif; letter-spacing: 0.02em; text-transform: uppercase; }
+  .card-body { padding: 14px; }
+
+  /* FORM ELEMENTS */
+  .field { margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; font-family: -apple-system, sans-serif; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); font-size: 15px; color: var(--text);
+    background: var(--bg); font-family: -apple-system, sans-serif;
+    -webkit-appearance: none; appearance: none;
+  }
+  .field textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none; border-color: var(--verde); background: #fff;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* RATING PILLS */
+  .rating-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+  .rpill { border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); font-size: 13px; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-family: -apple-system, sans-serif; transition: all 0.15s; white-space: nowrap; }
+  .rpill:active { opacity: 0.7; }
+  .rpill.sel-v { background: var(--verde-light); color: var(--verde-dark); border-color: var(--verde-mid); }
+  .rpill.sel-a { background: var(--amarelo-light); color: var(--amarelo-dark); border-color: var(--amarelo); }
+  .rpill.sel-r { background: var(--vermelho-light); color: var(--vermelho-dark); border-color: var(--vermelho); }
+
+  /* CHECKBOXES PRAGAS */
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .check-item { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg); transition: all 0.15s; font-family: -apple-system, sans-serif; color: var(--text); }
+  .check-item input { width: 16px; height: 16px; accent-color: var(--verde); flex-shrink: 0; }
+  .check-item.checked { background: var(--verde-light); border-color: var(--verde-mid); color: var(--verde-dark); }
+
+  /* FOTOS */
+  .foto-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+  .foto-thumb { aspect-ratio: 1; border-radius: var(--radius-sm); overflow: hidden; position: relative; background: var(--bg); border: 1px solid var(--border); }
+  .foto-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .foto-del { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.55); color: #fff; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+  .foto-caption { font-size: 11px; color: var(--text-muted); text-align: center; padding: 3px 4px; font-family: -apple-system, sans-serif; }
+  .btn-foto { width: 100%; padding: 11px; border: 1.5px dashed var(--verde); background: var(--verde-light); color: var(--verde-dark); border-radius: var(--radius-sm); font-size: 14px; cursor: pointer; font-family: -apple-system, sans-serif; text-align: center; }
+  .btn-foto:active { opacity: 0.7; }
+  #foto-input { display: none; }
+
+  /* BOTÃO PRINCIPAL */
+  .btn-main { width: 100%; padding: 15px; background: var(--verde); color: #fff; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 600; cursor: pointer; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; letter-spacing: 0.01em; }
+  .btn-main:active { background: var(--verde-dark); }
+  .btn-secondary { width: 100%; padding: 12px; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); font-size: 14px; cursor: pointer; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+  .btn-secondary:active { background: var(--bg); }
+
+  /* PREVIEW TEXT */
+  .preview-box { background: #1A2418; color: #C8E6C0; border-radius: var(--radius); padding: 16px; font-size: 13px; line-height: 1.75; font-family: 'Courier New', monospace; white-space: pre-wrap; word-break: break-word; margin: 12px 0; }
+
+  /* HISTÓRICO */
+  .hist-empty { text-align: center; padding: 40px 20px; color: var(--text-hint); font-size: 14px; font-family: -apple-system, sans-serif; }
+  .hist-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+  .hist-header { padding: 12px 14px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .hist-name { font-size: 15px; font-weight: 600; color: var(--text); font-family: -apple-system, sans-serif; }
+  .hist-date { font-size: 12px; color: var(--text-muted); font-family: -apple-system, sans-serif; margin-top: 2px; }
+  .hist-fazenda { font-size: 13px; color: var(--text-muted); font-family: -apple-system, sans-serif; }
+  .hist-actions { display: flex; gap: 6px; }
+  .hist-btn { padding: 5px 10px; border-radius: 20px; font-size: 12px; cursor: pointer; border: 1px solid var(--border); background: var(--bg); color: var(--text-muted); font-family: -apple-system, sans-serif; }
+  .hist-btn.danger { border-color: var(--vermelho); color: var(--vermelho-dark); background: var(--vermelho-light); }
+  .hist-btn.primary { border-color: var(--verde); color: var(--verde-dark); background: var(--verde-light); }
+  .hist-pragas { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 14px 12px; }
+  .hist-tag { font-size: 11px; padding: 3px 8px; border-radius: 12px; background: var(--amarelo-light); color: var(--amarelo-dark); border: 1px solid var(--amarelo); font-family: -apple-system, sans-serif; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1A2418; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-family: -apple-system, sans-serif; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* INSTALL BANNER */
+  .install-banner { background: var(--verde-dark); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; font-family: -apple-system, sans-serif; }
+  .install-banner button { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; white-space: nowrap; font-family: -apple-system, sans-serif; }
+  .install-banner .close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 18px; cursor: pointer; margin-left: auto; padding: 0 4px; }
+</style>
+</head>
+<body>
+
+<div id="install-banner" class="install-banner" style="display:none">
+  <span>📲</span>
+  <span style="flex:1">Adicione à tela inicial para usar offline</span>
+  <button id="install-btn" onclick="installApp()">Instalar</button>
+  <button class="close" onclick="document.getElementById('install-banner').style.display='none'">×</button>
+</div>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <h1>☕ Diagnóstico de Campo<span>Valoriza Agro</span></h1>
+    <button class="topbar-btn" onclick="novaVisita()">+ Nova visita</button>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('form')">📋 Formulário</div>
+    <div class="tab" onclick="showTab('preview')">📤 Relatório</div>
+    <div class="tab" onclick="showTab('historico')">🗂 Histórico</div>
+  </div>
+</div>
+
+<!-- ===== ABA FORMULÁRIO ===== -->
+<div class="screen active" id="screen-form">
+
+  <div class="card">
+    <div class="card-header"><div class="card-header-icon">👤</div><div class="card-header-title">Produtor e Propriedade</div></div>
+    <div class="card-body">
+      <div class="grid2">
+        <div class="field"><label>Nome do produtor</label><input id="produtor" type="text" placeholder="Ex: João Silva"></div>
+        <div class="field"><label>Fazenda / Sítio</label><input id="fazenda" type="text" placeholder="Ex: Faz. São Pedro"></div>
+        <div class="field"><label>Cidade / Região</label><input id="cidade" type="text" placeholder="Ex: Patrocínio - MG"></div>
+        <div class="field"><label>Data da visita</label><input id="data" type="date"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-header-icon">🌿</div><div class="card-header-title">Lavoura</div></div>
+    <div class="card-body">
+      <div class="grid2">
+        <div class="field"><label>Variedade(s)</label><input id="variedade" type="text" placeholder="Ex: Topázio, Arara"></div>
+        <div class="field"><label>Área (ha)</label><input id="area" type="text" placeholder="Ex: 12 ha"></div>
+      </div>
+      <div class="field"><label>Estágio fenológico</label>
+        <select id="estagio">
+          <option value="">Selecionar...</option>
+          <option>Repouso / dormência</option>
+          <option>Brotação / florada</option>
+          <option>Chumbinho</option>
+          <option>Expansão de fruto</option>
+          <option>Granação</option>
+          <option>Maturação</option>
+          <option>Pós-colheita</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-header-icon">📊</div><div class="card-header-title">Estado Geral</div></div>
+    <div class="card-body">
+      <div class="field">
+        <label>Vigor vegetativo</label>
+        <div class="rating-row" id="r-vigor">
+          <button class="rpill" data-val="Excelente" onclick="sel('vigor',this,'sel-v')">🌿 Excelente</button>
+          <button class="rpill" data-val="Bom" onclick="sel('vigor',this,'sel-v')">✅ Bom</button>
+          <button class="rpill" data-val="Regular" onclick="sel('vigor',this,'sel-a')">⚠️ Regular</button>
+          <button class="rpill" data-val="Fraco" onclick="sel('vigor',this,'sel-r')">🔴 Fraco</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Estado nutricional (visual)</label>
+        <div class="rating-row" id="r-nutri">
+          <button class="rpill" data-val="Adequado" onclick="sel('nutri',this,'sel-v')">✅ Adequado</button>
+          <button class="rpill" data-val="Leve deficiência" onclick="sel('nutri',this,'sel-a')">⚠️ Leve</button>
+          <button class="rpill" data-val="Deficiência severa" onclick="sel('nutri',this,'sel-r')">🔴 Severa</button>
+        </div>
+      </div>
+      <div class="field"><label>Observações nutricionais</label><textarea id="obs-nutri" placeholder="Ex: clorose internerval nas folhas novas, suspeita de deficiência de Mg..."></textarea></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-header-icon">🔍</div><div class="card-header-title">Fitossanidade</div></div>
+    <div class="card-body">
+      <label style="font-size:12px;color:var(--text-muted);font-family:-apple-system,sans-serif;display:block;margin-bottom:8px;">Selecione o que foi observado</label>
+      <div class="checks" id="pragas-checks">
+        <label class="check-item"><input type="checkbox" value="Bicho-mineiro"> Bicho-mineiro</label>
+        <label class="check-item"><input type="checkbox" value="Broca-do-café"> Broca-do-café</label>
+        <label class="check-item"><input type="checkbox" value="Ferrugem"> Ferrugem</label>
+        <label class="check-item"><input type="checkbox" value="Cercosporiose"> Cercosporiose</label>
+        <label class="check-item"><input type="checkbox" value="Phoma"> Phoma</label>
+        <label class="check-item"><input type="checkbox" value="Nematoides"> Nematoides</label>
+        <label class="check-item"><input type="checkbox" value="Ácaro"> Ácaro</label>
+        <label class="check-item"><input type="checkbox" value="Antracnose"> Antracnose</label>
+      </div>
+      <div class="field" style="margin-top:10px"><label>Nível de pressão / outros</label><textarea id="obs-pragas" placeholder="Ex: ferrugem com 15% de incidência no baixio..."></textarea></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-header-icon">📸</div><div class="card-header-title">Fotos da Lavoura</div></div>
+    <div class="card-body">
+      <div class="foto-grid" id="foto-grid"></div>
+      <button class="btn-foto" onclick="document.getElementById('foto-input').click()">📷 Tirar foto / Adicionar da galeria</button>
+      <input type="file" id="foto-input" accept="image/*" multiple capture="environment" onchange="addFotos(this)">
+      <p style="font-size:11px;color:var(--text-hint);margin-top:6px;font-family:-apple-system,sans-serif;text-align:center">As fotos ficam salvas localmente no aparelho</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-header-icon">✅</div><div class="card-header-title">Recomendações Técnicas</div></div>
+    <div class="card-body">
+      <div class="field"><label>Recomendações (uma por linha)</label><textarea id="recomendacoes" style="min-height:90px" placeholder="Ex:&#10;Aplicar foliar Mg + B na próxima semana&#10;Monitorar broca a cada 15 dias"></textarea></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-header-icon">📦</div><div class="card-header-title">Produtos Sugeridos — Valoriza</div></div>
+    <div class="card-body">
+      <div class="field"><textarea id="produtos" placeholder="Ex: Foliar Boro-K 1,5L/ha&#10;Organomineral X — 200kg/ha cobertura"></textarea></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-header-icon">📌</div><div class="card-header-title">Próximos Passos</div></div>
+    <div class="card-body">
+      <div class="grid2">
+        <div class="field"><label>Próxima visita</label><input id="proxima" type="text" placeholder="Ex: em 20 dias"></div>
+        <div class="field"><label>Ação urgente até</label><input id="urgencia" type="text" placeholder="Ex: até 10/06"></div>
+      </div>
+      <div class="field"><label>Recado final ao produtor</label><textarea id="obs-final" placeholder="Ex: qualquer dúvida me chama no zap!"></textarea></div>
+    </div>
+  </div>
+
+  <button class="btn-main" onclick="gerarRelatorio()">📤 Gerar relatório para WhatsApp</button>
+</div>
+
+<!-- ===== ABA PREVIEW ===== -->
+<div class="screen" id="screen-preview">
+  <div id="preview-content">
+    <div style="text-align:center;padding:40px 20px;color:var(--text-hint);font-family:-apple-system,sans-serif;font-size:14px">
+      Preencha o formulário e clique em<br><strong>"Gerar relatório"</strong> para ver o texto aqui.
+    </div>
+  </div>
+</div>
+
+<!-- ===== ABA HISTÓRICO ===== -->
+<div class="screen" id="screen-historico">
+  <div id="hist-list"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- STATE ----
+const ratings = {};
+const fotos = []; // {dataUrl, name}
+let deferredInstall = null;
+
+// ---- TABS ----
+function showTab(tab) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + tab).classList.add('active');
+  const idx = ['form','preview','historico'].indexOf(tab);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  if (tab === 'historico') renderHistorico();
+}
+
+// ---- RATINGS ----
+function sel(group, btn, cls) {
+  document.querySelectorAll('#r-' + group + ' .rpill').forEach(b => b.className = 'rpill');
+  btn.classList.add(cls);
+  ratings[group] = btn.getAttribute('data-val');
+}
+
+// ---- CHECKBOXES ----
+document.querySelectorAll('.check-item').forEach(label => {
+  label.querySelector('input').addEventListener('change', function() {
+    label.classList.toggle('checked', this.checked);
+  });
+});
+
+function getPragas() {
+  return Array.from(document.querySelectorAll('#pragas-checks input:checked')).map(i => i.value);
+}
+
+// ---- FOTOS ----
+function addFotos(input) {
+  Array.from(input.files).forEach(file => {
+    if (fotos.length >= 9) { toast('Máximo de 9 fotos'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      fotos.push({ dataUrl: e.target.result, name: file.name });
+      renderFotos();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderFotos() {
+  const grid = document.getElementById('foto-grid');
+  grid.innerHTML = fotos.map((f, i) => `
+    <div class="foto-thumb">
+      <img src="${f.dataUrl}" alt="foto ${i+1}">
+      <button class="foto-del" onclick="delFoto(${i})">×</button>
+      <div class="foto-caption">Foto ${i+1}</div>
+    </div>
+  `).join('');
+}
+
+function delFoto(i) { fotos.splice(i, 1); renderFotos(); }
+
+// ---- UTILS ----
+function v(id) { return (document.getElementById(id)?.value || '').trim(); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ---- GERAR RELATÓRIO ----
+function gerarRelatorio() {
+  const produtor = v('produtor') || 'Produtor';
+  const fazenda = v('fazenda');
+  const cidade = v('cidade');
+  const rawData = v('data');
+  const data = rawData ? new Date(rawData + 'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+  const variedade = v('variedade');
+  const area = v('area');
+  const estagio = v('estagio');
+  const vigor = ratings['vigor'] || '—';
+  const nutri = ratings['nutri'] || '—';
+  const obsNutri = v('obs-nutri');
+  const pragas = getPragas();
+  const obsPragas = v('obs-pragas');
+  const recomendacoes = v('recomendacoes');
+  const produtos = v('produtos');
+  const proxima = v('proxima');
+  const urgencia = v('urgencia');
+  const obsFinal = v('obs-final');
+
+  let txt = '';
+  txt += `☕ *RELATÓRIO DE VISITA TÉCNICA — CAFÉ*\n`;
+  txt += `━━━━━━━━━━━━━━━━━━━\n\n`;
+  txt += `👤 *Produtor:* ${produtor}\n`;
+  if (fazenda) txt += `🏡 *Propriedade:* ${fazenda}\n`;
+  if (cidade) txt += `📍 *Localização:* ${cidade}\n`;
+  txt += `📅 *Data:* ${data}\n\n`;
+
+  if (variedade || area || estagio) {
+    txt += `🌿 *LAVOURA*\n`;
+    if (variedade) txt += `• Variedade(s): ${variedade}\n`;
+    if (area) txt += `• Área: ${area}\n`;
+    if (estagio) txt += `• Fenologia: ${estagio}\n`;
+    txt += `\n`;
+  }
+
+  txt += `📊 *ESTADO GERAL*\n`;
+  txt += `• Vigor: ${vigor}\n`;
+  txt += `• Nutrição: ${nutri}\n`;
+  if (obsNutri) txt += `• Obs.: ${obsNutri}\n`;
+  txt += `\n`;
+
+  if (pragas.length > 0 || obsPragas) {
+    txt += `🔍 *FITOSSANIDADE*\n`;
+    if (pragas.length > 0) txt += `• Identificado: ${pragas.join(', ')}\n`;
+    if (obsPragas) txt += `• Detalhe: ${obsPragas}\n`;
+    txt += `\n`;
+  }
+
+  if (recomendacoes) {
+    txt += `✅ *RECOMENDAÇÕES TÉCNICAS*\n`;
+    recomendacoes.split('\n').filter(l => l.trim()).forEach((r, i) => { txt += `${i+1}. ${r.trim()}\n`; });
+    txt += `\n`;
+  }
+
+  if (produtos) {
+    txt += `📦 *PRODUTOS SUGERIDOS*\n`;
+    produtos.split('\n').filter(l => l.trim()).forEach(p => { txt += `• ${p.trim()}\n`; });
+    txt += `\n`;
+  }
+
+  txt += `📌 *PRÓXIMOS PASSOS*\n`;
+  if (proxima) txt += `• Próxima visita: ${proxima}\n`;
+  if (urgencia) txt += `• Ação até: ${urgencia}\n`;
+  if (obsFinal) txt += `\n💬 ${obsFinal}\n`;
+  txt += `\n━━━━━━━━━━━━━━━━━━━\n`;
+  txt += `_Relatório gerado por Washington Cortes — Agrônomo · Valoriza Agro_`;
+
+  // Salvar no histórico
+  salvarHistorico({produtor, fazenda, cidade, data, variedade, area, estagio, vigor, nutri, obsNutri, pragas, obsPragas, recomendacoes, produtos, proxima, urgencia, obsFinal, fotos: fotos.map(f=>f.dataUrl), txt, timestamp: Date.now()});
+
+  // Mostrar preview
+  const container = document.getElementById('preview-content');
+  container.innerHTML = `
+    <div class="preview-box" id="preview-txt">${escHtml(txt)}</div>
+    <p style="font-size:12px;color:var(--text-hint);font-family:-apple-system,sans-serif;margin:8px 0 12px;text-align:center">${fotos.length > 0 ? `📸 ${fotos.length} foto(s) salva(s) — envie separadamente` : 'Nenhuma foto adicionada'}</p>
+    <button class="btn-main" onclick="copiarTexto()">📋 Copiar texto</button>
+    <button class="btn-secondary" onclick="compartilhar()">📤 Compartilhar</button>
+  `;
+
+  showTab('preview');
+  toast('✅ Relatório gerado e salvo!');
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function copiarTexto() {
+  const txt = document.getElementById('preview-txt')?.innerText;
+  if (!txt) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(() => toast('✅ Copiado! Cole no WhatsApp'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast('✅ Copiado!');
+  }
+}
+
+function compartilhar() {
+  const txt = document.getElementById('preview-txt')?.innerText;
+  if (navigator.share) {
+    navigator.share({ text: txt }).catch(()=>{});
+  } else {
+    copiarTexto();
+  }
+}
+
+// ---- HISTÓRICO ----
+function salvarHistorico(dados) {
+  const hist = JSON.parse(localStorage.getItem('visitas') || '[]');
+  hist.unshift(dados);
+  if (hist.length > 50) hist.pop();
+  localStorage.setItem('visitas', JSON.stringify(hist));
+}
+
+function renderHistorico() {
+  const hist = JSON.parse(localStorage.getItem('visitas') || '[]');
+  const container = document.getElementById('hist-list');
+  if (hist.length === 0) {
+    container.innerHTML = '<div class="hist-empty">📋 Nenhuma visita registrada ainda.<br>Gere seu primeiro relatório!</div>';
+    return;
+  }
+  container.innerHTML = hist.map((v, i) => `
+    <div class="hist-card">
+      <div class="hist-header">
+        <div>
+          <div class="hist-name">${escHtml(v.produtor || '—')}</div>
+          <div class="hist-fazenda">${escHtml(v.fazenda || '')} ${v.cidade ? '· ' + escHtml(v.cidade) : ''}</div>
+          <div class="hist-date">📅 ${v.data || '—'} ${v.estagio ? '· ' + v.estagio : ''}</div>
+        </div>
+        <div class="hist-actions">
+          <button class="hist-btn primary" onclick="verRelatorio(${i})">Ver</button>
+          <button class="hist-btn danger" onclick="delVisita(${i})">✕</button>
+        </div>
+      </div>
+      ${v.pragas && v.pragas.length > 0 ? `<div class="hist-pragas">${v.pragas.map(p=>`<span class="hist-tag">${p}</span>`).join('')}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function verRelatorio(i) {
+  const hist = JSON.parse(localStorage.getItem('visitas') || '[]');
+  const v = hist[i];
+  const container = document.getElementById('preview-content');
+  container.innerHTML = `
+    <div class="preview-box" id="preview-txt">${escHtml(v.txt)}</div>
+    ${v.fotos && v.fotos.length > 0 ? `<div class="foto-grid" style="margin:10px 0">${v.fotos.map((f,j)=>`<div class="foto-thumb"><img src="${f}" alt="foto ${j+1}"></div>`).join('')}</div>` : ''}
+    <button class="btn-main" onclick="copiarTexto()">📋 Copiar texto</button>
+    <button class="btn-secondary" onclick="compartilhar()">📤 Compartilhar</button>
+  `;
+  showTab('preview');
+}
+
+function delVisita(i) {
+  if (!confirm('Excluir esta visita?')) return;
+  const hist = JSON.parse(localStorage.getItem('visitas') || '[]');
+  hist.splice(i, 1);
+  localStorage.setItem('visitas', JSON.stringify(hist));
+  renderHistorico();
+  toast('Visita removida');
+}
+
+// ---- NOVA VISITA ----
+function novaVisita() {
+  if (!confirm('Limpar formulário para nova visita?')) return;
+  ['produtor','fazenda','cidade','data','variedade','area','estagio','obs-nutri','obs-pragas','recomendacoes','produtos','proxima','urgencia','obs-final'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.querySelectorAll('.rpill').forEach(b => b.className = 'rpill');
+  document.querySelectorAll('.check-item').forEach(l => { l.classList.remove('checked'); l.querySelector('input').checked = false; });
+  Object.keys(ratings).forEach(k => delete ratings[k]);
+  fotos.length = 0; renderFotos();
+  showTab('form');
+  window.scrollTo(0, 0);
+}
+
+// ---- PWA INSTALL ----
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstall = e;
+  document.getElementById('install-banner').style.display = 'flex';
+});
+
+function installApp() {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  deferredInstall.userChoice.then(() => {
+    deferredInstall = null;
+    document.getElementById('install-banner').style.display = 'none';
+  });
+}
+
+// Definir data padrão hoje
+document.getElementById('data').valueAsDate = new Date();
+
+// Manifest inline via Blob
+const manifest = {
+  name: "Diagnóstico de Campo — Valoriza Agro",
+  short_name: "Diag. Campo",
+  description: "Gerador de relatórios de diagnóstico de campo para lavoura de café",
+  start_url: "./",
+  display: "standalone",
+  background_color: "#0F6E56",
+  theme_color: "#0F6E56",
+  orientation: "portrait",
+  icons: [
+    { src: "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%230F6E56'/><text x='96' y='130' font-size='100' text-anchor='middle'>☕</text></svg>`), sizes: "192x192", type: "image/svg+xml" },
+    { src: "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='100' fill='%230F6E56'/><text x='256' y='350' font-size='280' text-anchor='middle'>☕</text></svg>`), sizes: "512x512", type: "image/svg+xml" }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+document.getElementById('manifest-placeholder').href = URL.createObjectURL(blob);
+
+// Service Worker para offline
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    const CACHE = 'visita-cafe-v1';
+    self.addEventListener('install', e => {
+      self.skipWaiting();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(
+        caches.match(e.request).then(r => r || fetch(e.request).catch(() => new Response('Offline', {status: 503})))
+      );
+    });
+  `;
+  const swBlob = new Blob([swCode], {type: 'application/javascript'});
+  const swUrl = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+}
+</script>
+</body>
+</html>
