@@ -137,6 +137,11 @@
   .install-banner { background: var(--verde-dark); color: #fff; padding: 12px 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; font-family: -apple-system, sans-serif; }
   .install-banner button { background: rgba(255,255,255,0.2); border: none; color: #fff; padding: 6px 12px; border-radius: 20px; font-size: 12px; cursor: pointer; white-space: nowrap; font-family: -apple-system, sans-serif; }
   .install-banner .close { background: none; border: none; color: rgba(255,255,255,0.6); font-size: 18px; cursor: pointer; margin-left: auto; padding: 0 4px; }
+
+  /* PDF LAUDO */
+  #pdf-frame { display:none; }
+  .btn-pdf { width: 100%; padding: 15px; background: #1A4B8C; color: #fff; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 600; cursor: pointer; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; letter-spacing: 0.01em; }
+  .btn-pdf:active { background: #0F3470; }
 </style>
 </head>
 <body>
@@ -434,15 +439,18 @@ function gerarRelatorio() {
   txt += `_Relatório gerado por Washington Cortes — Agrônomo · Valoriza Agro_`;
 
   // Salvar no histórico
-  salvarHistorico({produtor, fazenda, cidade, data, variedade, area, estagio, vigor, nutri, obsNutri, pragas, obsPragas, recomendacoes, produtos, proxima, urgencia, obsFinal, fotos: fotos.map(f=>f.dataUrl), txt, timestamp: Date.now()});
+  const dadosRelatorio = {produtor, fazenda, cidade, data, variedade, area, estagio, vigor, nutri, obsNutri, pragas, obsPragas, recomendacoes, produtos, proxima, urgencia, obsFinal, txt};
+  window._ultimoRelatorio = dadosRelatorio;
+  salvarHistorico(Object.assign({}, dadosRelatorio, {fotos: fotos.map(f=>f.dataUrl), timestamp: Date.now()}));
 
   // Mostrar preview
   const container = document.getElementById('preview-content');
   container.innerHTML = `
     <div class="preview-box" id="preview-txt">${escHtml(txt)}</div>
     <p style="font-size:12px;color:var(--text-hint);font-family:-apple-system,sans-serif;margin:8px 0 12px;text-align:center">${fotos.length > 0 ? `📸 ${fotos.length} foto(s) salva(s) — envie separadamente` : 'Nenhuma foto adicionada'}</p>
-    <button class="btn-main" onclick="copiarTexto()">📋 Copiar texto</button>
-    <button class="btn-secondary" onclick="compartilhar()">📤 Compartilhar</button>
+    <button class="btn-main" onclick="copiarTexto()">📋 Copiar para WhatsApp</button>
+    <button class="btn-pdf" onclick="gerarPDF()">📄 Gerar Laudo PDF</button>
+    <button class="btn-secondary" onclick="compartilhar()">📤 Compartilhar texto</button>
   `;
 
   showTab('preview');
@@ -525,8 +533,9 @@ function verRelatorio(i) {
   container.innerHTML = `
     <div class="preview-box" id="preview-txt">${escHtml(v.txt)}</div>
     ${v.fotos && v.fotos.length > 0 ? `<div class="foto-grid" style="margin:10px 0">${v.fotos.map((f,j)=>`<div class="foto-thumb"><img src="${f}" alt="foto ${j+1}"></div>`).join('')}</div>` : ''}
-    <button class="btn-main" onclick="copiarTexto()">📋 Copiar texto</button>
-    <button class="btn-secondary" onclick="compartilhar()">📤 Compartilhar</button>
+    <button class="btn-main" onclick="copiarTexto()">📋 Copiar para WhatsApp</button>
+    <button class="btn-pdf" onclick="gerarPDF()">📄 Gerar Laudo PDF</button>
+    <button class="btn-secondary" onclick="compartilhar()">📤 Compartilhar texto</button>
   `;
   showTab('preview');
 }
@@ -609,6 +618,243 @@ if ('serviceWorker' in navigator) {
   const swUrl = URL.createObjectURL(swBlob);
   navigator.serviceWorker.register(swUrl).catch(()=>{});
 }
+
+// ---- GERAR PDF ----
+function gerarPDF() {
+  // Pega dados do preview atual
+  const dados = window._ultimoRelatorio;
+  if (!dados) { toast('Gere o relatório primeiro'); return; }
+
+  const d = dados;
+  const dataFmt = d.data || new Date().toLocaleDateString('pt-BR');
+
+  // Status colorido
+  function statusVigor(v) {
+    if (!v || v==='—') return '<span style="color:#888">—</span>';
+    if (v==='Excelente'||v==='Bom') return '<span style="color:#1D9E75;font-weight:600">'+v+'</span>';
+    if (v==='Regular') return '<span style="color:#EF9F27;font-weight:600">'+v+'</span>';
+    return '<span style="color:#E24B4A;font-weight:600">'+v+'</span>';
+  }
+  function statusNutri(v) {
+    if (!v || v==='—') return '<span style="color:#888">—</span>';
+    if (v==='Adequado') return '<span style="color:#1D9E75;font-weight:600">'+v+'</span>';
+    if (v.includes('Leve')) return '<span style="color:#EF9F27;font-weight:600">'+v+'</span>';
+    return '<span style="color:#E24B4A;font-weight:600">'+v+'</span>';
+  }
+
+  const pragas = d.pragas && d.pragas.length > 0 ? d.pragas.join(', ') : '—';
+
+  const recsHTML = d.recomendacoes
+    ? d.recomendacoes.split('\n').filter(l=>l.trim()).map((r,i)=>`<tr><td style="padding:7px 10px;color:#1D9E75;font-weight:700;font-size:14px">${i+1}</td><td style="padding:7px 10px;font-size:13px">${r.trim()}</td></tr>`).join('')
+    : '<tr><td colspan="2" style="padding:7px 10px;color:#888;font-size:13px">Nenhuma recomendação registrada</td></tr>';
+
+  const prodsHTML = d.produtos
+    ? d.produtos.split('\n').filter(l=>l.trim()).map(p=>`<tr><td style="padding:6px 10px;font-size:13px">• ${p.trim()}</td></tr>`).join('')
+    : '<tr><td style="padding:6px 10px;color:#888;font-size:13px">Nenhum produto registrado</td></tr>';
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Laudo Técnico — ${d.produtor}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Inter',sans-serif; background:#f0f0f0; color:#1A2418; }
+  .page { max-width:720px; margin:0 auto; background:#fff; min-height:100vh; }
+  
+  /* CABEÇALHO */
+  .header { background:linear-gradient(135deg,#0F6E56 0%,#1D9E75 100%); padding:28px 32px 22px; }
+  .header-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
+  .header-title { color:#fff; font-size:22px; font-weight:700; letter-spacing:-0.3px; }
+  .header-subtitle { color:rgba(255,255,255,0.8); font-size:12px; margin-top:3px; text-transform:uppercase; letter-spacing:0.08em; }
+  .header-badge { background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.3); color:#fff; font-size:11px; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+  .header-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .header-item { background:rgba(255,255,255,0.12); border-radius:8px; padding:10px 12px; }
+  .header-item-label { color:rgba(255,255,255,0.7); font-size:10px; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:3px; }
+  .header-item-val { color:#fff; font-size:13px; font-weight:600; }
+
+  /* SEÇÕES */
+  .body { padding:24px 32px; }
+  .section { margin-bottom:20px; }
+  .section-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; color:#0F6E56; margin-bottom:10px; display:flex; align-items:center; gap:6px; padding-bottom:6px; border-bottom:2px solid #EAF3DE; }
+  .section-icon { width:20px; height:20px; background:#EAF3DE; border-radius:5px; display:flex; align-items:center; justify-content:center; font-size:12px; }
+
+  /* TABELA INFO */
+  .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .info-item { background:#F7F8F5; border-radius:8px; padding:10px 12px; border-left:3px solid #1D9E75; }
+  .info-label { font-size:10px; color:#5C6B58; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:2px; }
+  .info-val { font-size:13px; font-weight:600; color:#1A2418; }
+
+  /* STATUS CARDS */
+  .status-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .status-card { border-radius:8px; padding:12px 14px; border:1px solid #E2E6DE; }
+  .status-label { font-size:10px; color:#5C6B58; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px; }
+  .status-val { font-size:15px; font-weight:700; }
+  .status-verde { background:#EAF3DE; border-color:#97C459; }
+  .status-verde .status-val { color:#0F6E56; }
+  .status-amarelo { background:#FAEEDA; border-color:#EF9F27; }
+  .status-amarelo .status-val { color:#854F0B; }
+  .status-vermelho { background:#FCEBEB; border-color:#E24B4A; }
+  .status-vermelho .status-val { color:#A32D2D; }
+  .status-neutro { background:#F7F8F5; }
+  .status-neutro .status-val { color:#1A2418; }
+
+  /* PRAGAS */
+  .praga-tags { display:flex; flex-wrap:wrap; gap:6px; }
+  .praga-tag { background:#FAEEDA; color:#854F0B; border:1px solid #EF9F27; font-size:12px; padding:4px 10px; border-radius:20px; font-weight:500; }
+  .obs-box { background:#F7F8F5; border-radius:8px; padding:12px; border-left:3px solid #EF9F27; font-size:13px; color:#1A2418; line-height:1.6; margin-top:8px; }
+
+  /* TABELA RECOMENDAÇÕES */
+  table { width:100%; border-collapse:collapse; }
+  .rec-table tr:nth-child(even) td { background:#F7F8F5; }
+  .rec-table tr td:first-child { width:32px; text-align:center; }
+
+  /* PRÓXIMOS PASSOS */
+  .passos-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .passo-card { border-radius:8px; padding:12px 14px; }
+  .passo-card.verde { background:#EAF3DE; border:1px solid #97C459; }
+  .passo-card.azul { background:#E6F1FB; border:1px solid #7EB8F0; }
+  .passo-label { font-size:10px; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px; font-weight:600; }
+  .passo-card.verde .passo-label { color:#0F6E56; }
+  .passo-card.azul .passo-label { color:#185FA5; }
+  .passo-val { font-size:13px; font-weight:600; color:#1A2418; }
+
+  /* RODAPÉ */
+  .footer { background:#1A2418; padding:18px 32px; display:flex; justify-content:space-between; align-items:center; }
+  .footer-name { color:#fff; font-size:14px; font-weight:600; }
+  .footer-title { color:rgba(255,255,255,0.6); font-size:11px; margin-top:2px; }
+  .footer-date { color:rgba(255,255,255,0.5); font-size:11px; text-align:right; }
+
+  /* PRINT */
+  @media print {
+    body { background:#fff; }
+    .page { max-width:100%; }
+    .no-print { display:none !important; }
+  }
+  
+  /* BOTÃO IMPRIMIR */
+  .print-bar { background:#185FA5; padding:12px 32px; display:flex; gap:10px; align-items:center; justify-content:center; }
+  .print-btn { background:#fff; color:#185FA5; border:none; padding:9px 20px; border-radius:20px; font-size:14px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+  .share-btn { background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); padding:9px 20px; border-radius:20px; font-size:14px; cursor:pointer; font-family:'Inter',sans-serif; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="print-bar no-print">
+    <button class="print-btn" onclick="window.print()">🖨️ Imprimir / Salvar PDF</button>
+    <button class="share-btn" onclick="if(navigator.share)navigator.share({title:'Laudo Técnico',text:document.title});else window.print()">📤 Compartilhar</button>
+  </div>
+
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-title">☕ Laudo Técnico de Campo</div>
+        <div class="header-subtitle">Diagnóstico agronômico — Lavoura de Café</div>
+      </div>
+      <div class="header-badge">📅 ${dataFmt}</div>
+    </div>
+    <div class="header-grid">
+      <div class="header-item">
+        <div class="header-item-label">Produtor</div>
+        <div class="header-item-val">${d.produtor||'—'}</div>
+      </div>
+      <div class="header-item">
+        <div class="header-item-label">Propriedade</div>
+        <div class="header-item-val">${d.fazenda||'—'}</div>
+      </div>
+      <div class="header-item">
+        <div class="header-item-label">Localização</div>
+        <div class="header-item-val">${d.cidade||'—'}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <div class="section">
+      <div class="section-title"><div class="section-icon">🌿</div> Caracterização da Lavoura</div>
+      <div class="info-grid">
+        <div class="info-item"><div class="info-label">Variedade(s)</div><div class="info-val">${d.variedade||'—'}</div></div>
+        <div class="info-item"><div class="info-label">Área Avaliada</div><div class="info-val">${d.area||'—'}</div></div>
+        <div class="info-item" style="grid-column:span 2"><div class="info-label">Estágio Fenológico</div><div class="info-val">${d.estagio||'—'}</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><div class="section-icon">📊</div> Avaliação do Estado Geral</div>
+      <div class="status-row">
+        <div class="status-card ${getStatusClass(d.vigor)}">
+          <div class="status-label">Vigor Vegetativo</div>
+          <div class="status-val">${d.vigor||'—'}</div>
+        </div>
+        <div class="status-card ${getStatusClass(d.nutri)}">
+          <div class="status-label">Estado Nutricional</div>
+          <div class="status-val">${d.nutri||'—'}</div>
+        </div>
+      </div>
+      ${d.obsNutri ? `<div class="obs-box" style="margin-top:8px"><strong>Observação:</strong> ${d.obsNutri}</div>` : ''}
+    </div>
+
+    <div class="section">
+      <div class="section-title"><div class="section-icon">🔍</div> Fitossanidade</div>
+      ${d.pragas && d.pragas.length > 0 ? `<div class="praga-tags">${d.pragas.map(p=>`<span class="praga-tag">⚠️ ${p}</span>`).join('')}</div>` : '<p style="font-size:13px;color:#888">Nenhuma praga ou doença identificada</p>'}
+      ${d.obsPragas ? `<div class="obs-box"><strong>Detalhe:</strong> ${d.obsPragas}</div>` : ''}
+    </div>
+
+    <div class="section">
+      <div class="section-title"><div class="section-icon">✅</div> Recomendações Técnicas</div>
+      <table class="rec-table">${recsHTML}</table>
+    </div>
+
+    ${d.produtos ? `
+    <div class="section">
+      <div class="section-title"><div class="section-icon">📦</div> Produtos Sugeridos</div>
+      <table>${prodsHTML}</table>
+    </div>` : ''}
+
+    <div class="section">
+      <div class="section-title"><div class="section-icon">📌</div> Próximos Passos</div>
+      <div class="passos-grid">
+        ${d.proxima ? `<div class="passo-card verde"><div class="passo-label">📅 Próxima Visita</div><div class="passo-val">${d.proxima}</div></div>` : ''}
+        ${d.urgencia ? `<div class="passo-card azul"><div class="passo-label">⚡ Ação Urgente Até</div><div class="passo-val">${d.urgencia}</div></div>` : ''}
+      </div>
+      ${d.obsFinal ? `<div class="obs-box" style="margin-top:10px;border-left-color:#1D9E75">💬 ${d.obsFinal}</div>` : ''}
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div>
+      <div class="footer-name">Washington Cortes</div>
+      <div class="footer-title">Engenheiro Agrônomo</div>
+    </div>
+    <div class="footer-date">Laudo emitido em<br>${dataFmt}</div>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  // Abre em nova janela
+  const win = window.open('', '_blank');
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  } else {
+    toast('⚠️ Permita pop-ups no Safari para abrir o PDF');
+  }
+}
+
+function getStatusClass(v) {
+  if (!v || v==='—') return 'status-neutro';
+  if (v==='Excelente'||v==='Bom'||v==='Adequado') return 'status-verde';
+  if (v==='Regular'||v.includes('Leve')) return 'status-amarelo';
+  return 'status-vermelho';
+}
+
 </script>
 </body>
 </html>
