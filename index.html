@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -475,15 +476,25 @@ function compartilhar() {
 }
 
 // ---- HISTÓRICO ----
+function getHist() {
+  try { return JSON.parse(localStorage.getItem('visitas') || '[]'); } catch(e) { return []; }
+}
+function setHist(h) {
+  try { localStorage.setItem('visitas', JSON.stringify(h)); } catch(e) {}
+}
+
 function salvarHistorico(dados) {
-  const hist = JSON.parse(localStorage.getItem('visitas') || '[]');
-  hist.unshift(dados);
-  if (hist.length > 50) hist.pop();
-  localStorage.setItem('visitas', JSON.stringify(hist));
+  try {
+    const hist = getHist();
+    const dadosSem = Object.assign({}, dados, {fotos: []});
+    hist.unshift(dadosSem);
+    if (hist.length > 50) hist.pop();
+    setHist(hist);
+  } catch(e) {}
 }
 
 function renderHistorico() {
-  const hist = JSON.parse(localStorage.getItem('visitas') || '[]');
+  const hist = getHist();
   const container = document.getElementById('hist-list');
   if (hist.length === 0) {
     container.innerHTML = '<div class="hist-empty">📋 Nenhuma visita registrada ainda.<br>Gere seu primeiro relatório!</div>';
@@ -508,7 +519,7 @@ function renderHistorico() {
 }
 
 function verRelatorio(i) {
-  const hist = JSON.parse(localStorage.getItem('visitas') || '[]');
+  const hist = getHist();
   const v = hist[i];
   const container = document.getElementById('preview-content');
   container.innerHTML = `
@@ -522,9 +533,9 @@ function verRelatorio(i) {
 
 function delVisita(i) {
   if (!confirm('Excluir esta visita?')) return;
-  const hist = JSON.parse(localStorage.getItem('visitas') || '[]');
+  const hist = getHist();
   hist.splice(i, 1);
-  localStorage.setItem('visitas', JSON.stringify(hist));
+  setHist(hist);
   renderHistorico();
   toast('Visita removida');
 }
